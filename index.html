@@ -23,9 +23,6 @@
             -ms-overflow-style: none;
             scrollbar-width: none;
         }
-        .ai-gradient {
-            background: linear-gradient(135deg, #065f46 0%, #047857 100%);
-        }
         .card-shadow {
             box-shadow: 0 10px 25px -5px rgba(6, 78, 59, 0.05);
         }
@@ -36,6 +33,9 @@
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
+        }
+        input[type=range] {
+            accent-color: #059669;
         }
     </style>
 </head>
@@ -96,7 +96,6 @@
         </nav>
 
         <!-- Overlays -->
-        <!-- 年度目標設定 -->
         <div id="goal-setter" class="hidden absolute inset-0 z-[60] bg-emerald-950/20 backdrop-blur-sm flex items-center justify-center p-8">
             <div class="bg-white w-full p-10 rounded-[3rem] shadow-2xl text-center border border-emerald-50">
                 <h3 class="text-lg font-semibold text-emerald-950 mb-8">年度計畫</h3>
@@ -119,7 +118,7 @@
         // --- 應用程式狀態 ---
         let state = {
             activeTab: 'home',
-            books: JSON.parse(localStorage.getItem('bibliTrack_html_books')) || [],
+            books: JSON.parse(localStorage.getItem('bibliTrack_html_books_v4')) || [],
             yearlyGoal: parseInt(localStorage.getItem('bibliTrack_html_goal')) || 12,
             isAiLoading: false,
             aiRecommendation: localStorage.getItem('bibliTrack_last_rec') || null,
@@ -127,18 +126,24 @@
             isSearching: false
         };
 
-        const apiKey = ""; // 由環境自動注入
+        const apiKey = ""; 
         const GEMINI_MODEL = "gemini-2.5-flash-preview-09-2025";
         const STATUS = { WANT: '想讀', READING: '閱讀中', FINISHED: '已完讀' };
+        // 五維指標
+        const DIMENSIONS = [
+            { key: 'knowledge', label: '知識獲取' },
+            { key: 'logic', label: '邏輯思辨' },
+            { key: 'emotion', label: '情感共鳴' },
+            { key: 'practical', label: '實踐應用' },
+            { key: 'creative', label: '創意啟發' }
+        ];
 
-        // --- 資料持久化 ---
         function saveToStorage() {
-            localStorage.setItem('bibliTrack_html_books', JSON.stringify(state.books));
+            localStorage.setItem('bibliTrack_html_books_v4', JSON.stringify(state.books));
             localStorage.setItem('bibliTrack_html_goal', state.yearlyGoal.toString());
             if (state.aiRecommendation) localStorage.setItem('bibliTrack_last_rec', state.aiRecommendation);
         }
 
-        // --- Gemini AI 調用 (含重試機制) ---
         async function callGemini(prompt, systemInstruction = "") {
             toggleAiLoader(true);
             let delay = 1000;
@@ -152,18 +157,14 @@
                             systemInstruction: { parts: [{ text: systemInstruction }] }
                         })
                     });
-                    
-                    if (!response.ok) throw new Error('API 回應錯誤');
-                    
+                    if (!response.ok) throw new Error('API Error');
                     const data = await response.json();
                     const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-                    
                     toggleAiLoader(false);
                     return text;
                 } catch (error) {
                     if (i === 4) {
-                        console.error("AI 調用失敗:", error);
-                        alert("AI 目前連線不穩定，請稍後再試。");
+                        alert("AI 目前連線不穩定。");
                         toggleAiLoader(false);
                         return null;
                     }
@@ -173,22 +174,77 @@
             }
         }
 
-        // --- 渲染邏輯 ---
+        // --- 雷達圖生成器 (修正版：擴展邊界與優化對齊) ---
+        function generateRadarSvg(values, size = 280, color = "#059669") {
+            const center = size / 2;
+            const radius = size * 0.28; // 縮小雷達主體比例，為文字留空
+            const angleStep = (Math.PI * 2) / 5;
+            
+            // 背景多邊形 (網格線)
+            let gridHtml = '';
+            for (let i = 1; i <= 4; i++) {
+                const r = (radius / 4) * i;
+                const points = Array.from({ length: 5 }).map((_, j) => {
+                    const x = center + r * Math.sin(j * angleStep);
+                    const y = center - r * Math.cos(j * angleStep);
+                    return `${x},${y}`;
+                }).join(' ');
+                gridHtml += `<polygon points="${points}" fill="none" stroke="#F0F1F3" stroke-width="1" />`;
+            }
+
+            // 數據多邊形
+            const points = DIMENSIONS.map((d, i) => {
+                const val = (values[d.key] || 0) / 10;
+                const r = radius * val;
+                const x = center + r * Math.sin(i * angleStep);
+                const y = center - r * Math.cos(i * angleStep);
+                return `${x},${y}`;
+            }).join(' ');
+
+            // 標籤定位與對齊優化
+            const labelsHtml = DIMENSIONS.map((d, i) => {
+                const r = radius + 32; // 增加標籤與雷達的距離
+                const x = center + r * Math.sin(i * angleStep);
+                const y = center - r * Math.cos(i * angleStep);
+                
+                // 根據標籤位置決定 text-anchor (對齊方式)
+                let anchor = "middle";
+                if (Math.sin(i * angleStep) > 0.1) anchor = "start"; // 右側
+                else if (Math.sin(i * angleStep) < -0.1) anchor = "end"; // 左側
+
+                return `<text x="${x}" y="${y + 4}" text-anchor="${anchor}" font-size="11" fill="#9CA3AF" font-weight="600" style="letter-spacing: 0.05em;">${d.label}</text>`;
+            }).join('');
+
+            return `
+                <svg width="100%" height="${size}" viewBox="0 0 ${size} ${size}" class="mx-auto overflow-visible">
+                    ${gridHtml}
+                    <!-- 數據區塊 -->
+                    <polygon points="${points}" fill="${color}" fill-opacity="0.15" stroke="${color}" stroke-width="2.5" stroke-linejoin="round" />
+                    <!-- 頂點圓點 -->
+                    ${DIMENSIONS.map((d, i) => {
+                        const val = (values[d.key] || 0) / 10;
+                        const r = radius * val;
+                        const x = center + r * Math.sin(i * angleStep);
+                        const y = center - r * Math.cos(i * angleStep);
+                        return `<circle cx="${x}" cy="${y}" r="3" fill="${color}" />`;
+                    }).join('')}
+                    ${labelsHtml}
+                </svg>
+            `;
+        }
+
         function render() {
             const main = document.getElementById('main-content');
             main.innerHTML = '';
-
             if (state.activeTab === 'home') renderHome(main);
             else if (state.activeTab === 'library') renderLibrary(main);
             else if (state.activeTab === 'search') renderSearch(main);
             else if (state.activeTab === 'stats') renderStats(main);
 
-            // 更新導覽列樣式
             document.querySelectorAll('.nav-btn').forEach(btn => {
                 const isActive = btn.id === `nav-${state.activeTab}`;
                 btn.className = `nav-btn flex flex-col items-center gap-1.5 transition-all duration-300 ${isActive ? 'text-emerald-700 scale-105' : 'text-emerald-100 hover:text-emerald-400'}`;
             });
-
             lucide.createIcons();
         }
 
@@ -199,7 +255,6 @@
             const div = document.createElement('div');
             div.className = 'page-transition space-y-10 pt-2';
             div.innerHTML = `
-                <!-- 目標進度卡片 -->
                 <section class="bg-emerald-800/95 p-8 rounded-[2.5rem] text-white shadow-xl shadow-emerald-100/50 relative overflow-hidden">
                     <i data-lucide="sparkles" class="absolute -right-6 -top-6 text-white/5 w-32 h-32"></i>
                     <p class="text-emerald-200/60 text-[10px] font-medium uppercase tracking-[0.25em] mb-2">My Journey</p>
@@ -215,7 +270,6 @@
                     </div>
                 </section>
 
-                <!-- AI 推薦區 -->
                 <section class="bg-white p-7 rounded-[2rem] border border-emerald-50 shadow-sm card-shadow">
                     <div class="flex justify-between items-center mb-6">
                         <h3 class="text-sm font-semibold text-emerald-900 flex items-center gap-2">
@@ -226,11 +280,10 @@
                         </button>
                     </div>
                     <div id="ai-rec-box" class="text-[13px] text-emerald-900/60 leading-[1.8] whitespace-pre-wrap">
-                        ${state.aiRecommendation ? `<div class="bg-emerald-50/30 rounded-2xl p-5 border border-emerald-100/20 italic">${state.aiRecommendation}</div>` : `<p class="text-center text-emerald-800/30 italic py-4">讓 AI 探索你的閱讀品味...</p>`}
+                        ${state.aiRecommendation ? `<div class="bg-emerald-50/30 rounded-2xl p-5 border border-emerald-100/30 italic">${state.aiRecommendation}</div>` : `<p class="text-center text-emerald-800/30 italic py-4">讓 AI 探索你的閱讀品味...</p>`}
                     </div>
                 </section>
 
-                <!-- 正在閱讀 -->
                 <section>
                     <h3 class="text-sm font-semibold text-emerald-950 mb-5 px-1 flex items-center gap-2">
                         <i data-lucide="clock" class="w-4 h-4 text-emerald-500" stroke-width="1.5"></i> 閱讀中
@@ -244,9 +297,8 @@
                                     <div class="h-1.5 w-full bg-emerald-50 rounded-full overflow-hidden my-2">
                                         <div class="h-full bg-emerald-500/60" style="width: ${(book.currentPage/book.pages)*100}%"></div>
                                     </div>
-                                    <div class="flex justify-between items-center">
-                                        <span class="text-[10px] text-emerald-800/40 font-medium">${Math.round((book.currentPage/book.pages)*100)}% 完成</span>
-                                        ${book.aiSummary ? `<i data-lucide="sparkles" class="w-2.5 h-2.5 text-amber-400 fill-current"></i>` : ''}
+                                    <div class="flex justify-between text-[10px] text-emerald-800/40 font-medium">
+                                        <span>${Math.round((book.currentPage/book.pages)*100)}% 完成</span>
                                     </div>
                                 </div>
                             </div>
@@ -268,8 +320,7 @@
                                 <div class="flex-1 min-w-0">
                                     <h4 class="font-semibold text-emerald-950 text-sm truncate">${book.title}</h4>
                                     <div class="flex gap-2 mt-2">
-                                        <span class="text-[9px] px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-md font-medium tracking-wider">${book.status}</span>
-                                        ${book.aiSummary ? `<span class="text-[9px] px-2 py-0.5 bg-amber-50 text-amber-700 rounded-md font-medium">AI INSIGHT</span>` : ''}
+                                        <span class="text-[9px] px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-md font-medium tracking-wider uppercase">${book.status}</span>
                                     </div>
                                 </div>
                             </div>
@@ -309,25 +360,51 @@
         }
 
         function renderStats(container) {
-            const finished = state.books.filter(b => b.status === STATUS.FINISHED).length;
+            const finishedBooks = state.books.filter(b => b.status === STATUS.FINISHED);
+            
+            // 計算平均能力雷達
+            const avgStats = { knowledge: 0, logic: 0, emotion: 0, practical: 0, creative: 0 };
+            if (finishedBooks.length > 0) {
+                finishedBooks.forEach(b => {
+                    const radar = b.radar || { knowledge: 5, logic: 5, emotion: 5, practical: 5, creative: 5 };
+                    DIMENSIONS.forEach(d => avgStats[d.key] += (radar[d.key] || 5));
+                });
+                DIMENSIONS.forEach(d => avgStats[d.key] /= finishedBooks.length);
+            } else {
+                DIMENSIONS.forEach(d => avgStats[d.key] = 0);
+            }
+
             container.innerHTML = `
-                <div class="page-transition space-y-8 pt-4 text-center">
+                <div class="page-transition space-y-8 pt-4">
                     <h2 class="text-xl font-semibold text-emerald-950">閱讀回顧</h2>
-                    <div class="bg-white border border-emerald-50 p-12 rounded-[3.5rem] shadow-sm flex flex-col items-center gap-6 card-shadow">
-                       <div class="w-20 h-20 bg-emerald-50 rounded-3xl flex items-center justify-center text-emerald-600/60 rotate-6 shadow-sm">
-                          <i data-lucide="library-big" class="w-10 h-10"></i>
+                    
+                    <!-- 綜合雷達圖 (使用加大尺寸 280) -->
+                    <div class="bg-white p-8 rounded-[3rem] shadow-sm border border-emerald-50 card-shadow text-center">
+                        <h4 class="text-[10px] font-semibold text-emerald-600 uppercase tracking-widest mb-6">全書路徑能力成長</h4>
+                        <div class="w-full flex justify-center">
+                            ${generateRadarSvg(avgStats, 280)}
+                        </div>
+                        <p class="text-xs text-gray-400 mt-6 leading-relaxed px-4 italic">累積完讀 ${finishedBooks.length} 本書的各項指標平均值</p>
+                    </div>
+
+                    <div class="bg-white border border-emerald-50 p-10 rounded-[3rem] shadow-sm flex flex-col items-center gap-6 card-shadow">
+                       <div class="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600/60 rotate-6">
+                          <i data-lucide="library-big" class="w-8 h-8"></i>
                        </div>
                        <div>
-                        <p class="text-emerald-800/30 text-[10px] font-medium uppercase tracking-[0.2em] mb-2">Total Finished</p>
-                        <h3 class="text-6xl font-semibold text-emerald-950 tracking-tighter">${finished} <span class="text-base font-normal text-emerald-200 ml-1">Books</span></h3>
+                        <p class="text-emerald-800/30 text-[10px] font-medium uppercase tracking-[0.2em] mb-1">Total Finished</p>
+                        <h3 class="text-5xl font-semibold text-emerald-950 tracking-tighter">${finishedBooks.length} <span class="text-base font-normal text-emerald-200">Books</span></h3>
                       </div>
                     </div>
                 </div>
             `;
+            lucide.createIcons();
         }
 
         function renderBookDetail(book) {
             const detail = document.getElementById('book-detail');
+            const radar = book.radar || { knowledge: 5, logic: 5, emotion: 5, practical: 5, creative: 5 };
+
             detail.innerHTML = `
                 <div class="p-6 pt-12 flex justify-between items-center sticky top-0 bg-white/90 backdrop-blur-md z-10 border-b border-emerald-50">
                     <button onclick="toggleBookDetail(false)" class="w-10 h-10 bg-white rounded-2xl flex items-center justify-center border border-emerald-50 shadow-sm"><i data-lucide="chevron-left" class="w-4.5 h-4.5"></i></button>
@@ -336,16 +413,15 @@
                 </div>
                 
                 <div class="p-6 space-y-12 page-transition">
-                    <!-- 書籍標題與評分 -->
                     <div class="flex gap-8 items-start">
-                        <img src="${book.cover}" class="w-32 h-44 object-cover rounded-[1.8rem] shadow-xl border-4 border-white">
+                        <img src="${book.cover}" class="w-32 h-44 object-cover rounded-[1.8rem] shadow-xl border-4 border-white bg-gray-50">
                         <div class="flex-1 pt-2">
                             <h2 class="text-lg font-semibold leading-relaxed text-emerald-950 mb-1 line-clamp-2">${book.title}</h2>
                             <p class="text-emerald-700/40 font-medium text-[11px] mb-6 italic">${book.author}</p>
                             <div class="flex items-center gap-1.5 mb-8">
                                 ${[1,2,3,4,5].map(s => `<i onclick="rateBook('${book.id}', ${s})" data-lucide="star" class="w-5 h-5 cursor-pointer ${s <= book.rating ? 'text-amber-400 fill-amber-400' : 'text-emerald-50'}"></i>`).join('')}
                             </div>
-                            <select onchange="updateStatus('${book.id}', this.value)" class="w-full bg-emerald-50/50 border border-emerald-50 rounded-xl py-3 px-4 font-medium text-[11px] text-emerald-800 tracking-widest uppercase outline-none">
+                            <select onchange="updateStatus('${book.id}', this.value)" class="w-full bg-emerald-50/50 border border-emerald-50 rounded-xl py-3 px-4 font-medium text-[11px] text-emerald-800 tracking-widest uppercase outline-none shadow-sm">
                                 <option value="${STATUS.WANT}" ${book.status === STATUS.WANT ? 'selected' : ''}>${STATUS.WANT}</option>
                                 <option value="${STATUS.READING}" ${book.status === STATUS.READING ? 'selected' : ''}>${STATUS.READING}</option>
                                 <option value="${STATUS.FINISHED}" ${book.status === STATUS.FINISHED ? 'selected' : ''}>${STATUS.FINISHED}</option>
@@ -353,24 +429,33 @@
                         </div>
                     </div>
 
-                    <!-- AI 導讀區 -->
-                    <section class="bg-white p-8 rounded-[2.5rem] shadow-sm border border-amber-50/50 relative">
-                       <div class="flex justify-between items-center mb-6">
-                         <h4 class="text-[10px] font-semibold text-amber-600/80 uppercase tracking-[0.25em] flex items-center gap-2">
-                           <i data-lucide="sparkles" class="w-3.5 h-3.5 fill-current"></i> AI 解析
-                         </h4>
-                         ${!book.aiSummary ? `<button onclick="generateSummary('${book.id}')" class="px-4 py-2 bg-amber-500/10 text-amber-600 text-[10px] font-semibold rounded-xl active:scale-95 transition-all">生成導讀</button>` : ''}
-                       </div>
-                       <div class="text-[13px] text-emerald-900/60 leading-[1.8] font-normal whitespace-pre-wrap border-l border-amber-100/50 pl-5">
-                         ${book.aiSummary || `<p class="text-[12px] text-emerald-800/20 italic text-center py-4">讓 AI 帶你掌握核心重點</p>`}
-                       </div>
+                    <!-- 五維成長雷達 (使用加大尺寸 280) -->
+                    <section class="bg-white p-8 rounded-[2.5rem] shadow-sm border border-emerald-50 card-shadow text-center">
+                        <h4 class="text-[10px] font-semibold text-emerald-600 uppercase tracking-widest mb-10">本次閱讀成長指標</h4>
+                        <div class="w-full flex justify-center mb-4">
+                            ${generateRadarSvg(radar, 280)}
+                        </div>
+                        
+                        <div class="mt-8 space-y-5 text-left px-4">
+                            ${DIMENSIONS.map(d => `
+                                <div>
+                                    <div class="flex justify-between text-[11px] font-semibold text-gray-400 mb-2">
+                                        <span>${d.label}</span>
+                                        <span id="label-${d.key}" class="text-emerald-600 font-bold">${radar[d.key] || 5}</span>
+                                    </div>
+                                    <input type="range" min="1" max="10" step="1" value="${radar[d.key] || 5}" 
+                                           oninput="updateRadar('${book.id}', '${d.key}', this.value)"
+                                           class="w-full h-1.5 bg-emerald-50 rounded-lg appearance-none cursor-pointer">
+                                </div>
+                            `).join('')}
+                        </div>
                     </section>
 
                     <!-- 進度更新 -->
-                    <div class="bg-emerald-900/95 p-10 rounded-[3.2rem] text-white shadow-lg space-y-10 relative overflow-hidden">
+                    <div class="bg-emerald-900/95 p-10 rounded-[3.5rem] text-white shadow-lg space-y-10 relative overflow-hidden">
                         <i data-lucide="leaf" class="absolute -right-6 -top-6 text-white/5 w-32 h-32 rotate-45"></i>
                         <h4 class="text-[9px] font-medium text-emerald-300 uppercase tracking-[0.3em] flex items-center gap-2 opacity-50 relative z-10">
-                          <i data-lucide="book-open" class="w-3 h-3"></i> 目前里程碑
+                          <i data-lucide="book-open" class="w-3 h-3"></i> 目前進度
                         </h4>
                         <div class="flex items-center gap-8 relative z-10">
                            <div class="flex-1 flex flex-col items-center gap-4">
@@ -394,7 +479,7 @@
                         </button>
                       </div>
                       <div class="bg-white p-2 rounded-[2.8rem] shadow-sm border border-emerald-50 card-shadow">
-                        <textarea id="detail-note" placeholder="記錄下此刻的心流狀態..." class="w-full bg-transparent border-none rounded-[2.2rem] p-7 text-[14px] outline-none min-h-[180px] text-emerald-950/80 placeholder:text-emerald-100/60 leading-[1.8]"></textarea>
+                        <textarea id="detail-note" placeholder="記錄下此刻的心感..." class="w-full bg-transparent border-none rounded-[2.2rem] p-7 text-[14px] outline-none min-h-[180px] text-emerald-950/80 placeholder:text-emerald-100/60 leading-[1.8]"></textarea>
                         <button onclick="saveNote('${book.id}')" class="w-full py-5 bg-emerald-800 text-white rounded-[2rem] font-medium text-sm tracking-[0.2em] shadow-lg shadow-emerald-200 uppercase transition-all active:bg-emerald-900">儲存</button>
                       </div>
                       <div class="space-y-6 pt-6">
@@ -414,22 +499,16 @@
         }
 
         // --- 互動處理器 ---
-        function switchTab(tabId) {
-            state.activeTab = tabId;
-            render();
-        }
-
+        function switchTab(tabId) { state.activeTab = tabId; render(); }
         function toggleGoalSetter(show) {
             document.getElementById('goal-setter').classList.toggle('hidden', !show);
             document.getElementById('goal-value').innerText = state.yearlyGoal;
         }
-
         function adjustGoal(amt) {
             state.yearlyGoal = Math.max(1, state.yearlyGoal + amt);
             document.getElementById('goal-value').innerText = state.yearlyGoal;
             saveToStorage();
         }
-
         function toggleAiLoader(show) {
             state.isAiLoading = show;
             document.getElementById('ai-loader').classList.toggle('hidden', !show);
@@ -439,144 +518,96 @@
             e.preventDefault();
             const query = document.getElementById('search-input').value;
             if (!query.trim()) return;
-            
-            state.isSearching = true;
-            render();
-
+            state.isSearching = true; render();
             try {
                 const res = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=10`);
                 const data = await res.json();
                 state.searchResults = (data.items || []).map(item => ({
-                    id: item.id,
-                    title: item.volumeInfo.title,
-                    author: item.volumeInfo.authors?.[0] || '未知作者',
+                    id: item.id, title: item.volumeInfo.title, author: item.volumeInfo.authors?.[0] || '未知作者',
                     cover: item.volumeInfo.imageLinks?.thumbnail || 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&q=80&w=200',
-                    pages: item.volumeInfo.pageCount || 250,
-                    tags: [],
-                    notes: []
+                    pages: item.volumeInfo.pageCount || 250, radar: { knowledge: 5, logic: 5, emotion: 5, practical: 5, creative: 5 }, notes: []
                 }));
-            } catch (err) { console.error("搜尋錯誤:", err); } finally {
-                state.isSearching = false;
-                render();
-            }
+            } catch (err) { console.error(err); } finally { state.isSearching = false; render(); }
         }
 
         function addBook(id) {
             const found = state.searchResults.find(b => b.id === id);
             if (found && !state.books.find(b => b.id === id)) {
                 state.books.push({ ...found, status: STATUS.WANT, currentPage: 0, rating: 0, dateAdded: new Date().toISOString() });
-                saveToStorage();
-                switchTab('library');
+                saveToStorage(); switchTab('library');
             }
         }
-
         function openBookDetail(id) {
             const book = state.books.find(b => b.id === id);
-            if (book) {
-                renderBookDetail(book);
-                toggleBookDetail(true);
-            }
+            if (book) { renderBookDetail(book); toggleBookDetail(true); }
         }
-
-        function toggleBookDetail(show) {
-            document.getElementById('book-detail').classList.toggle('hidden', !show);
-        }
-
+        function toggleBookDetail(show) { document.getElementById('book-detail').classList.toggle('hidden', !show); }
         function deleteBook(id) {
-            if (confirm("確定從館藏中移除這本書？")) {
+            if (confirm("確定移除這本書？")) {
                 state.books = state.books.filter(b => b.id !== id);
-                saveToStorage();
-                toggleBookDetail(false);
-                render();
+                saveToStorage(); toggleBookDetail(false); render();
             }
         }
-
         function rateBook(id, rating) {
             const book = state.books.find(b => b.id === id);
-            if (book) {
-                book.rating = rating;
-                saveToStorage();
-                renderBookDetail(book);
-                render();
-            }
+            if (book) { book.rating = rating; saveToStorage(); renderBookDetail(book); render(); }
         }
-
         function updateStatus(id, status) {
             const book = state.books.find(b => b.id === id);
             if (book) {
-                if (status === STATUS.FINISHED && book.status !== STATUS.FINISHED) {
-                    book.dateFinished = new Date().toISOString();
-                }
-                book.status = status;
-                saveToStorage();
-                render();
+                if (status === STATUS.FINISHED && book.status !== STATUS.FINISHED) book.dateFinished = new Date().toISOString();
+                book.status = status; saveToStorage(); render();
             }
         }
-
         function updateProgress(id, pages) {
             const book = state.books.find(b => b.id === id);
+            if (book) { book.currentPage = Math.min(parseInt(pages) || 0, book.pages); saveToStorage(); render(); }
+        }
+        function updateRadar(id, key, val) {
+            const book = state.books.find(b => b.id === id);
             if (book) {
-                book.currentPage = Math.min(parseInt(pages) || 0, book.pages);
+                if (!book.radar) book.radar = { knowledge: 5, logic: 5, emotion: 5, practical: 5, creative: 5 };
+                book.radar[key] = parseInt(val);
+                document.getElementById(`label-${key}`).innerText = val;
+                // 即時更新 SVG
+                const svgContainer = document.querySelector('#book-detail .mx-auto');
+                if (svgContainer) {
+                    const newSvg = generateRadarSvg(book.radar, 280);
+                    svgContainer.innerHTML = newSvg;
+                    // 因為 innerHTML 會覆蓋整層，我們需要一個容器，或者直接替換
+                    svgContainer.outerHTML = newSvg;
+                }
                 saveToStorage();
-                render();
             }
         }
-
         function saveNote(id) {
             const text = document.getElementById('detail-note').value;
             const book = state.books.find(b => b.id === id);
             if (book && text.trim()) {
                 if (!book.notes) book.notes = [];
                 book.notes.unshift({ id: Date.now(), text, date: new Date().toLocaleDateString() });
-                saveToStorage();
-                document.getElementById('detail-note').value = '';
-                renderBookDetail(book);
+                saveToStorage(); document.getElementById('detail-note').value = ''; renderBookDetail(book);
             }
         }
 
-        // --- AI 行動 ---
         async function getRecommendations() {
             const finished = state.books.filter(b => b.status === STATUS.FINISHED).map(b => `《${b.title}》(${b.rating}星)`).join(', ');
-            if (!finished) {
-                alert("請先讀完幾本書並評分，AI 才能了解你的品味！");
-                return;
-            }
-            const prompt = `我已讀完：[${finished}]。推薦 3 本新書，包含書名、原因與適合心情。繁體中文。`;
-            const result = await callGemini(prompt, "你是一位懂書的智慧導覽員。");
-            if (result) {
-                state.aiRecommendation = result;
-                saveToStorage();
-                render();
-            }
-        }
-
-        async function generateSummary(id) {
-            const book = state.books.find(b => b.id === id);
-            const prompt = `為《${book.title}》提供 300 字精華導讀（主題、建議、知識點）。繁體中文。`;
-            const result = await callGemini(prompt, "你是一位專業讀書博主。");
-            if (result) {
-                book.aiSummary = result;
-                saveToStorage();
-                renderBookDetail(book);
-            }
+            if (!finished) { alert("請先讀完幾本書並評分。"); return; }
+            const prompt = `我已讀完：[${finished}]。推薦 3 本新書，包含原因。繁體中文。`;
+            const result = await callGemini(prompt, "你是一位懂書的導覽員。");
+            if (result) { state.aiRecommendation = result; saveToStorage(); render(); }
         }
 
         async function beautifyNote(id) {
             const text = document.getElementById('detail-note').value;
             const book = state.books.find(b => b.id === id);
             if (!text.trim()) return;
-            const prompt = `將我的心得：『${text}』修飾成優美的書評。書名《${book.title}》。`;
+            const prompt = `修飾成優美的書評。書名《${book.title}》：『${text}』`;
             const result = await callGemini(prompt, "你是一位文學評論家。");
-            if (result) {
-                document.getElementById('detail-note').value = result;
-            }
+            if (result) document.getElementById('detail-note').value = result;
         }
 
-        // --- 初始化 ---
-        window.onload = () => {
-            render();
-            lucide.createIcons();
-        };
+        window.onload = () => { render(); lucide.createIcons(); };
     </script>
 </body>
 </html>
