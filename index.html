@@ -6,7 +6,7 @@
     <title>書跡 AI Pro - 舒心閱讀伴侶</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Fonts: Klee One -->
+    <!-- Google Fonts: Klee One (芫荽母本) -->
     <link href="https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&display=swap" rel="stylesheet">
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -14,6 +14,7 @@
         body {
             font-family: 'Klee One', cursive, sans-serif;
             -webkit-tap-highlight-color: transparent;
+            background-color: #FBFDFA;
         }
         .hide-scrollbar::-webkit-scrollbar {
             display: none;
@@ -22,23 +23,30 @@
             -ms-overflow-style: none;
             scrollbar-width: none;
         }
-        .animate-float {
-            animation: float 3s ease-in-out infinite;
+        .ai-gradient {
+            background: linear-gradient(135deg, #065f46 0%, #047857 100%);
         }
-        @keyframes float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-5px); }
+        .card-shadow {
+            box-shadow: 0 10px 25px -5px rgba(6, 78, 59, 0.05);
+        }
+        /* Smooth transitions */
+        .page-transition {
+            animation: fadeIn 0.4s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
     </style>
 </head>
-<body class="bg-[#FBFDFA] text-slate-800">
+<body class="text-slate-800">
 
     <div id="app" class="max-w-md mx-auto h-screen flex flex-col overflow-hidden relative shadow-2xl bg-[#FBFDFA]">
         
-        <!-- AI Loading Overlay -->
-        <div id="ai-loader" class="hidden absolute top-4 left-1/2 -translate-x-1/2 z-[100] bg-emerald-800/80 backdrop-blur-md text-white px-4 py-1.5 rounded-full shadow-lg flex items-center gap-2 animate-pulse">
+        <!-- AI 狀態指示器 -->
+        <div id="ai-loader" class="hidden absolute top-4 left-1/2 -translate-x-1/2 z-[100] bg-emerald-800/90 backdrop-blur-md text-white px-4 py-2 rounded-full shadow-xl flex items-center gap-2 animate-pulse">
             <i data-lucide="sparkles" class="w-3 h-3 text-amber-300"></i>
-            <span class="text-[10px] font-medium tracking-widest uppercase">AI Insight</span>
+            <span class="text-[10px] font-medium tracking-widest uppercase">AI 思考中</span>
         </div>
 
         <!-- Header -->
@@ -46,7 +54,7 @@
             <div class="flex items-center gap-3">
                 <div class="relative">
                     <div class="w-10 h-10 bg-emerald-700/5 rounded-2xl flex items-center justify-center border border-emerald-100/50">
-                        <i data-lucide="book-text" class="text-emerald-700 w-5 h-5"></i>
+                        <i data-lucide="book-text" class="text-emerald-700 w-5 h-5" stroke-width="1.5"></i>
                     </div>
                     <div class="absolute -top-1 -right-1">
                         <i data-lucide="sparkles" class="w-3 h-3 text-amber-500 fill-current animate-pulse"></i>
@@ -58,76 +66,79 @@
                 </div>
             </div>
             <button onclick="toggleGoalSetter(true)" class="w-9 h-9 bg-white border border-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600 shadow-sm active:scale-90 transition-all">
-                <i data-lucide="target" class="w-4.5 h-4.5"></i>
+                <i data-lucide="target" class="w-4.5 h-4.5" stroke-width="1.5"></i>
             </button>
         </header>
 
-        <!-- Main Content -->
-        <main id="main-content" class="flex-1 overflow-y-auto pb-24 px-6 hide-scrollbar">
-            <!-- Dynamic Content Injected Here -->
+        <!-- Main Content Area -->
+        <main id="main-content" class="flex-1 overflow-y-auto pb-32 px-6 hide-scrollbar">
+            <!-- 動態內容將在此注入 -->
         </main>
 
-        <!-- Bottom Nav -->
-        <nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/95 backdrop-blur-xl border-t border-emerald-50 px-10 py-5 flex justify-between items-center z-40 pb-9">
-            <button onclick="switchTab('home')" id="nav-home" class="nav-btn flex flex-col items-center gap-1.5 transition-all duration-300 text-emerald-700">
+        <!-- Bottom Navigation -->
+        <nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/95 backdrop-blur-xl border-t border-emerald-50 px-10 py-5 flex justify-between items-center z-40 pb-10">
+            <button onclick="switchTab('home')" id="nav-home" class="nav-btn flex flex-col items-center gap-1.5 transition-all duration-300">
                 <i data-lucide="bookmark" class="w-5 h-5"></i>
                 <span class="text-[9px] font-medium tracking-widest uppercase">首頁</span>
             </button>
-            <button onclick="switchTab('library')" id="nav-library" class="nav-btn flex flex-col items-center gap-1.5 transition-all duration-300 text-emerald-100">
+            <button onclick="switchTab('library')" id="nav-library" class="nav-btn flex flex-col items-center gap-1.5 transition-all duration-300">
                 <i data-lucide="library" class="w-5 h-5"></i>
                 <span class="text-[9px] font-medium tracking-widest uppercase">館藏</span>
             </button>
-            <button onclick="switchTab('search')" id="nav-search" class="nav-btn flex flex-col items-center gap-1.5 transition-all duration-300 text-emerald-100">
+            <button onclick="switchTab('search')" id="nav-search" class="nav-btn flex flex-col items-center gap-1.5 transition-all duration-300">
                 <i data-lucide="search" class="w-5 h-5"></i>
                 <span class="text-[9px] font-medium tracking-widest uppercase">搜尋</span>
             </button>
-            <button onclick="switchTab('stats')" id="nav-stats" class="nav-btn flex flex-col items-center gap-1.5 transition-all duration-300 text-emerald-100">
+            <button onclick="switchTab('stats')" id="nav-stats" class="nav-btn flex flex-col items-center gap-1.5 transition-all duration-300">
                 <i data-lucide="bar-chart-2" class="w-5 h-5"></i>
                 <span class="text-[9px] font-medium tracking-widest uppercase">統計</span>
             </button>
         </nav>
 
         <!-- Overlays -->
+        <!-- 年度目標設定 -->
         <div id="goal-setter" class="hidden absolute inset-0 z-[60] bg-emerald-950/20 backdrop-blur-sm flex items-center justify-center p-8">
             <div class="bg-white w-full p-10 rounded-[3rem] shadow-2xl text-center border border-emerald-50">
-                <h3 class="text-lg font-semibold text-emerald-950 mb-8">計畫年度目標</h3>
+                <h3 class="text-lg font-semibold text-emerald-950 mb-8">年度計畫</h3>
                 <div class="flex items-center justify-center gap-8 mb-10">
-                    <button onclick="adjustGoal(-1)" class="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-700 text-2xl font-light">-</button>
+                    <button onclick="adjustGoal(-1)" class="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-700 text-2xl">-</button>
                     <span id="goal-value" class="text-5xl font-semibold text-emerald-900 tracking-tighter">12</span>
-                    <button onclick="adjustGoal(1)" class="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-700 text-2xl font-light">+</button>
+                    <button onclick="adjustGoal(1)" class="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-700 text-2xl">+</button>
                 </div>
-                <button onclick="toggleGoalSetter(false)" class="w-full py-4 bg-emerald-700 text-white rounded-2xl font-medium shadow-lg shadow-emerald-100/50 uppercase text-sm tracking-widest">儲存計畫</button>
+                <button onclick="toggleGoalSetter(false)" class="w-full py-4 bg-emerald-700 text-white rounded-2xl font-medium shadow-lg shadow-emerald-100/50 uppercase text-sm tracking-widest">確定</button>
             </div>
         </div>
 
-        <div id="book-detail" class="hidden absolute inset-0 bg-[#FBFDFA] z-50 flex flex-col overflow-y-auto pb-24">
-            <!-- Detail Content Injected Here -->
+        <!-- 書籍詳情抽屜 -->
+        <div id="book-detail" class="hidden absolute inset-0 bg-[#FBFDFA] z-50 flex flex-col overflow-y-auto pb-32">
+            <!-- 詳情內容在此注入 -->
         </div>
     </div>
 
     <script>
-        // --- State Management ---
+        // --- 應用程式狀態 ---
         let state = {
             activeTab: 'home',
             books: JSON.parse(localStorage.getItem('bibliTrack_html_books')) || [],
             yearlyGoal: parseInt(localStorage.getItem('bibliTrack_html_goal')) || 12,
             isAiLoading: false,
-            aiRecommendation: null,
+            aiRecommendation: localStorage.getItem('bibliTrack_last_rec') || null,
             searchResults: [],
             isSearching: false
         };
 
-        const apiKey = ""; 
+        const apiKey = ""; // 由環境自動注入
         const GEMINI_MODEL = "gemini-2.5-flash-preview-09-2025";
         const STATUS = { WANT: '想讀', READING: '閱讀中', FINISHED: '已完讀' };
 
-        // --- Persistence ---
+        // --- 資料持久化 ---
         function saveToStorage() {
             localStorage.setItem('bibliTrack_html_books', JSON.stringify(state.books));
             localStorage.setItem('bibliTrack_html_goal', state.yearlyGoal.toString());
+            if (state.aiRecommendation) localStorage.setItem('bibliTrack_last_rec', state.aiRecommendation);
         }
 
-        // --- Gemini API ---
+        // --- Gemini AI 調用 (含重試機制) ---
         async function callGemini(prompt, systemInstruction = "") {
             toggleAiLoader(true);
             let delay = 1000;
@@ -141,13 +152,18 @@
                             systemInstruction: { parts: [{ text: systemInstruction }] }
                         })
                     });
-                    if (!response.ok) throw new Error('API failed');
+                    
+                    if (!response.ok) throw new Error('API 回應錯誤');
+                    
                     const data = await response.json();
+                    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                    
                     toggleAiLoader(false);
-                    return data.candidates?.[0]?.content?.parts?.[0]?.text;
+                    return text;
                 } catch (error) {
                     if (i === 4) {
-                        alert("AI 暫時休息中。");
+                        console.error("AI 調用失敗:", error);
+                        alert("AI 目前連線不穩定，請稍後再試。");
                         toggleAiLoader(false);
                         return null;
                     }
@@ -157,30 +173,20 @@
             }
         }
 
-        // --- Render Functions ---
+        // --- 渲染邏輯 ---
         function render() {
             const main = document.getElementById('main-content');
             main.innerHTML = '';
 
-            if (state.activeTab === 'home') {
-                renderHome(main);
-            } else if (state.activeTab === 'library') {
-                renderLibrary(main);
-            } else if (state.activeTab === 'search') {
-                renderSearch(main);
-            } else if (state.activeTab === 'stats') {
-                renderStats(main);
-            }
+            if (state.activeTab === 'home') renderHome(main);
+            else if (state.activeTab === 'library') renderLibrary(main);
+            else if (state.activeTab === 'search') renderSearch(main);
+            else if (state.activeTab === 'stats') renderStats(main);
 
-            // Update Nav Styles
+            // 更新導覽列樣式
             document.querySelectorAll('.nav-btn').forEach(btn => {
-                btn.classList.remove('text-emerald-700');
-                btn.classList.add('text-emerald-100');
-                const icon = btn.querySelector('i');
-                if (btn.id === `nav-${state.activeTab}`) {
-                    btn.classList.add('text-emerald-700');
-                    btn.classList.remove('text-emerald-100');
-                }
+                const isActive = btn.id === `nav-${state.activeTab}`;
+                btn.className = `nav-btn flex flex-col items-center gap-1.5 transition-all duration-300 ${isActive ? 'text-emerald-700 scale-105' : 'text-emerald-100 hover:text-emerald-400'}`;
             });
 
             lucide.createIcons();
@@ -190,80 +196,84 @@
             const rollingFinished = state.books.filter(b => b.status === STATUS.FINISHED && b.dateFinished && (new Date() - new Date(b.dateFinished)) < 365*24*60*60*1000).length;
             const progress = Math.min(Math.round((rollingFinished / state.yearlyGoal) * 100), 100);
 
-            const section = document.createElement('div');
-            section.className = 'space-y-10 pt-2 animate-in fade-in duration-700';
-            section.innerHTML = `
-                <section class="bg-emerald-800/90 p-8 rounded-[2rem] text-white shadow-xl relative overflow-hidden">
-                    <p class="text-emerald-200/60 text-[10px] font-medium uppercase tracking-[0.25em] mb-2">Reading Marathon</p>
-                    <h2 class="text-4xl font-semibold mb-6 tracking-tight">${rollingFinished} / ${state.yearlyGoal} <span class="text-sm font-normal opacity-30 ml-1">Books</span></h2>
+            const div = document.createElement('div');
+            div.className = 'page-transition space-y-10 pt-2';
+            div.innerHTML = `
+                <!-- 目標進度卡片 -->
+                <section class="bg-emerald-800/95 p-8 rounded-[2.5rem] text-white shadow-xl shadow-emerald-100/50 relative overflow-hidden">
+                    <i data-lucide="sparkles" class="absolute -right-6 -top-6 text-white/5 w-32 h-32"></i>
+                    <p class="text-emerald-200/60 text-[10px] font-medium uppercase tracking-[0.25em] mb-2">My Journey</p>
+                    <h2 class="text-4xl font-semibold mb-6 tracking-tighter">${rollingFinished} / ${state.yearlyGoal} <span class="text-sm font-normal opacity-30 ml-1">Books</span></h2>
                     <div class="space-y-3">
                         <div class="flex justify-between text-[10px] font-medium tracking-widest text-emerald-300 uppercase">
-                           <span>Progress ${progress}%</span>
-                           <span>${Math.max(0, state.yearlyGoal - rollingFinished)} Left</span>
+                           <span>達成率 ${progress}%</span>
+                           <span>還差 ${Math.max(0, state.yearlyGoal - rollingFinished)} 本</span>
                         </div>
                         <div class="h-1.5 w-full bg-emerald-950/20 rounded-full overflow-hidden">
-                          <div class="h-full bg-emerald-300 rounded-full transition-all duration-1000" style="width: ${progress}%"></div>
+                          <div class="h-full bg-emerald-400 rounded-full transition-all duration-1000 ease-out" style="width: ${progress}%"></div>
                         </div>
                     </div>
                 </section>
 
-                <section class="bg-white p-6 rounded-[2rem] border border-emerald-50 shadow-sm">
+                <!-- AI 推薦區 -->
+                <section class="bg-white p-7 rounded-[2rem] border border-emerald-50 shadow-sm card-shadow">
                     <div class="flex justify-between items-center mb-6">
                         <h3 class="text-sm font-semibold text-emerald-900 flex items-center gap-2">
-                            <i data-lucide="compass" class="w-4 h-4 text-emerald-500"></i> 靈感發現
+                            <i data-lucide="compass" class="w-4 h-4 text-emerald-500" stroke-width="1.5"></i> 智慧推薦
                         </h3>
-                        <button onclick="getRecommendations()" class="w-10 h-10 bg-emerald-600 text-white rounded-xl flex items-center justify-center shadow-md active:scale-90">
-                            <i data-lucide="wand-2" class="w-4 h-4"></i>
+                        <button onclick="getRecommendations()" class="w-10 h-10 bg-emerald-600 text-white rounded-xl flex items-center justify-center shadow-lg active:scale-90 transition-all">
+                            <i data-lucide="wand-2" class="w-4 h-4" stroke-width="1.5"></i>
                         </button>
                     </div>
-                    <div id="ai-rec-box" class="text-[13px] text-emerald-900/70 leading-relaxed whitespace-pre-wrap">
-                        ${state.aiRecommendation ? `<div class="bg-emerald-50/30 rounded-2xl p-5 border border-emerald-100/30">${state.aiRecommendation}</div>` : `<p class="text-center text-emerald-800/30 italic py-4">讓 AI 推薦你的下一段旅程</p>`}
+                    <div id="ai-rec-box" class="text-[13px] text-emerald-900/60 leading-[1.8] whitespace-pre-wrap">
+                        ${state.aiRecommendation ? `<div class="bg-emerald-50/30 rounded-2xl p-5 border border-emerald-100/20 italic">${state.aiRecommendation}</div>` : `<p class="text-center text-emerald-800/30 italic py-4">讓 AI 探索你的閱讀品味...</p>`}
                     </div>
                 </section>
 
+                <!-- 正在閱讀 -->
                 <section>
                     <h3 class="text-sm font-semibold text-emerald-950 mb-5 px-1 flex items-center gap-2">
-                        <i data-lucide="clock" class="w-4 h-4 text-emerald-500"></i> 目前進度
+                        <i data-lucide="clock" class="w-4 h-4 text-emerald-500" stroke-width="1.5"></i> 閱讀中
                     </h3>
                     <div class="space-y-5">
                         ${state.books.filter(b => b.status === STATUS.READING).map(book => `
-                            <div onclick="openBookDetail('${book.id}')" class="bg-white p-5 rounded-[2rem] border border-emerald-50 shadow-sm flex gap-5 active:scale-[0.98] transition-all">
-                                <img src="${book.cover}" class="w-16 h-24 object-cover rounded-xl shadow-sm">
+                            <div onclick="openBookDetail('${book.id}')" class="bg-white p-5 rounded-[2rem] border border-emerald-50 shadow-sm flex gap-5 active:scale-[0.98] transition-all card-shadow">
+                                <img src="${book.cover}" class="w-16 h-24 object-cover rounded-xl shadow-sm bg-gray-50">
                                 <div class="flex-1 py-1 flex flex-col justify-between min-w-0">
                                     <h4 class="font-semibold text-emerald-950 text-[15px] truncate">${book.title}</h4>
-                                    <div class="h-1 w-full bg-emerald-50 rounded-full overflow-hidden my-2">
+                                    <div class="h-1.5 w-full bg-emerald-50 rounded-full overflow-hidden my-2">
                                         <div class="h-full bg-emerald-500/60" style="width: ${(book.currentPage/book.pages)*100}%"></div>
                                     </div>
                                     <div class="flex justify-between items-center">
-                                        <span class="text-[10px] text-emerald-800/40 font-medium">${Math.round((book.currentPage/book.pages)*100)}% 已讀</span>
-                                        ${book.aiSummary ? `<i data-lucide="sparkles" class="w-2.5 h-2.5 text-amber-400"></i>` : ''}
+                                        <span class="text-[10px] text-emerald-800/40 font-medium">${Math.round((book.currentPage/book.pages)*100)}% 完成</span>
+                                        ${book.aiSummary ? `<i data-lucide="sparkles" class="w-2.5 h-2.5 text-amber-400 fill-current"></i>` : ''}
                                     </div>
                                 </div>
                             </div>
-                        `).join('') || '<p class="text-center text-emerald-800/20 py-10 italic">點擊搜尋開始你的第一本書</p>'}
+                        `).join('') || '<p class="text-center text-emerald-800/20 py-10 italic">點擊搜尋，展開下一段旅程</p>'}
                     </div>
                 </section>
             `;
-            container.appendChild(section);
+            container.appendChild(div);
         }
 
         function renderLibrary(container) {
             container.innerHTML = `
-                <div class="space-y-6 pt-4">
+                <div class="page-transition space-y-6 pt-4">
                     <h2 class="text-xl font-semibold text-emerald-950">藏書空間</h2>
                     <div class="grid gap-4">
                         ${state.books.map(book => `
-                            <div onclick="openBookDetail('${book.id}')" class="bg-white p-4 rounded-[1.8rem] border border-emerald-50 shadow-sm flex gap-4 items-center active:scale-[0.98]">
-                                <img src="${book.cover}" class="w-12 h-18 object-cover rounded-lg">
+                            <div onclick="openBookDetail('${book.id}')" class="bg-white p-4 rounded-[1.8rem] border border-emerald-50 shadow-sm flex gap-4 items-center active:scale-[0.98] card-shadow">
+                                <img src="${book.cover}" class="w-12 h-18 object-cover rounded-lg bg-gray-50">
                                 <div class="flex-1 min-w-0">
                                     <h4 class="font-semibold text-emerald-950 text-sm truncate">${book.title}</h4>
                                     <div class="flex gap-2 mt-2">
-                                        <span class="text-[9px] px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-md font-medium uppercase tracking-wider">${book.status}</span>
-                                        ${book.aiSummary ? `<span class="text-[9px] px-2 py-0.5 bg-amber-50 text-amber-700 rounded-md font-medium tracking-wider uppercase">AI Insight</span>` : ''}
+                                        <span class="text-[9px] px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-md font-medium tracking-wider">${book.status}</span>
+                                        ${book.aiSummary ? `<span class="text-[9px] px-2 py-0.5 bg-amber-50 text-amber-700 rounded-md font-medium">AI INSIGHT</span>` : ''}
                                     </div>
                                 </div>
                             </div>
-                        `).join('') || '<p class="text-center text-emerald-800/30 py-20">書櫃目前是空的</p>'}
+                        `).join('') || '<p class="text-center text-emerald-800/20 py-24 italic">書櫃目前空空如也</p>'}
                     </div>
                 </div>
             `;
@@ -271,23 +281,23 @@
 
         function renderSearch(container) {
             container.innerHTML = `
-                <div class="pt-4">
+                <div class="page-transition pt-4">
                     <h2 class="text-xl font-semibold text-emerald-950 mb-6">添購智慧</h2>
                     <form onsubmit="handleSearch(event)" class="relative mb-8">
-                        <input id="search-input" type="text" placeholder="探索書名、作者..." class="w-full pl-12 pr-4 py-4 bg-white rounded-[1.5rem] shadow-sm border border-emerald-50 focus:ring-1 focus:ring-emerald-200 outline-none text-sm placeholder:text-emerald-200">
+                        <input id="search-input" type="text" placeholder="輸入書名、作者或話題..." class="w-full pl-12 pr-4 py-4 bg-white rounded-[1.5rem] shadow-sm border border-emerald-50 focus:ring-1 focus:ring-emerald-200 outline-none text-sm placeholder:text-emerald-200">
                         <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-200 w-4 h-4"></i>
                     </form>
                     <div id="search-results-list" class="grid gap-4">
                         ${state.isSearching ? `
                             <div class="py-20 flex flex-col items-center gap-4 text-emerald-100">
                                 <i data-lucide="loader-2" class="animate-spin w-8 h-8"></i>
-                                <p class="text-[10px] font-medium tracking-widest uppercase">Searching...</p>
+                                <p class="text-[10px] font-medium tracking-widest uppercase">尋找中...</p>
                             </div>
                         ` : state.searchResults.map(book => `
-                            <div onclick="addBook('${book.id}')" class="bg-white p-4 rounded-[1.5rem] border border-emerald-50 flex gap-4 items-center active:scale-95">
-                                <img src="${book.cover}" class="w-12 h-18 object-cover rounded-md">
-                                <div class="flex-1">
-                                    <p class="font-semibold text-[13px] text-emerald-950 line-clamp-1">${book.title}</p>
+                            <div onclick="addBook('${book.id}')" class="bg-white p-4 rounded-[1.5rem] border border-emerald-50 flex gap-4 items-center active:scale-95 card-shadow transition-all">
+                                <img src="${book.cover}" class="w-12 h-18 object-cover rounded-md bg-gray-50">
+                                <div class="flex-1 min-w-0">
+                                    <p class="font-semibold text-[13px] text-emerald-950 truncate">${book.title}</p>
                                     <p class="text-[10px] text-emerald-800/40 font-medium">${book.author}</p>
                                 </div>
                                 <i data-lucide="plus" class="text-emerald-400 w-5 h-5"></i>
@@ -301,15 +311,15 @@
         function renderStats(container) {
             const finished = state.books.filter(b => b.status === STATUS.FINISHED).length;
             container.innerHTML = `
-                <div class="space-y-8 pt-4 text-center">
-                    <h2 class="text-xl font-semibold text-emerald-950">閱讀記錄</h2>
-                    <div class="bg-white border border-emerald-50 p-12 rounded-[3rem] shadow-sm flex flex-col items-center gap-6">
-                       <div class="w-20 h-20 bg-emerald-50 rounded-3xl flex items-center justify-center text-emerald-600/60 rotate-6">
+                <div class="page-transition space-y-8 pt-4 text-center">
+                    <h2 class="text-xl font-semibold text-emerald-950">閱讀回顧</h2>
+                    <div class="bg-white border border-emerald-50 p-12 rounded-[3.5rem] shadow-sm flex flex-col items-center gap-6 card-shadow">
+                       <div class="w-20 h-20 bg-emerald-50 rounded-3xl flex items-center justify-center text-emerald-600/60 rotate-6 shadow-sm">
                           <i data-lucide="library-big" class="w-10 h-10"></i>
                        </div>
                        <div>
                         <p class="text-emerald-800/30 text-[10px] font-medium uppercase tracking-[0.2em] mb-2">Total Finished</p>
-                        <h3 class="text-6xl font-semibold text-emerald-950 tracking-tighter">${finished} <span class="text-base font-normal text-emerald-200 tracking-normal ml-1">Books</span></h3>
+                        <h3 class="text-6xl font-semibold text-emerald-950 tracking-tighter">${finished} <span class="text-base font-normal text-emerald-200 ml-1">Books</span></h3>
                       </div>
                     </div>
                 </div>
@@ -321,18 +331,19 @@
             detail.innerHTML = `
                 <div class="p-6 pt-12 flex justify-between items-center sticky top-0 bg-white/90 backdrop-blur-md z-10 border-b border-emerald-50">
                     <button onclick="toggleBookDetail(false)" class="w-10 h-10 bg-white rounded-2xl flex items-center justify-center border border-emerald-50 shadow-sm"><i data-lucide="chevron-left" class="w-4.5 h-4.5"></i></button>
-                    <span class="text-[10px] font-semibold text-emerald-950 tracking-[0.3em] uppercase opacity-50">Book Archive</span>
+                    <span class="text-[10px] font-semibold text-emerald-950 tracking-[0.3em] uppercase opacity-40">書籍檔案</span>
                     <button onclick="deleteBook('${book.id}')" class="w-10 h-10 bg-white rounded-2xl flex items-center justify-center border border-rose-50 text-rose-300 shadow-sm"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
                 </div>
                 
-                <div class="p-6 space-y-12">
+                <div class="p-6 space-y-12 page-transition">
+                    <!-- 書籍標題與評分 -->
                     <div class="flex gap-8 items-start">
-                        <img src="${book.cover}" class="w-32 h-44 object-cover rounded-[1.5rem] shadow-xl border-4 border-white">
+                        <img src="${book.cover}" class="w-32 h-44 object-cover rounded-[1.8rem] shadow-xl border-4 border-white">
                         <div class="flex-1 pt-2">
-                            <h2 class="text-xl font-semibold leading-relaxed text-emerald-950 mb-1">${book.title}</h2>
-                            <p class="text-emerald-700/40 font-medium text-[11px] mb-6 tracking-wide italic">${book.author}</p>
+                            <h2 class="text-lg font-semibold leading-relaxed text-emerald-950 mb-1 line-clamp-2">${book.title}</h2>
+                            <p class="text-emerald-700/40 font-medium text-[11px] mb-6 italic">${book.author}</p>
                             <div class="flex items-center gap-1.5 mb-8">
-                                ${[1,2,3,4,5].map(s => `<i onclick="rateBook('${book.id}', ${s})" data-lucide="star" class="w-5 h-5 ${s <= book.rating ? 'text-amber-400 fill-amber-400' : 'text-emerald-50'}"></i>`).join('')}
+                                ${[1,2,3,4,5].map(s => `<i onclick="rateBook('${book.id}', ${s})" data-lucide="star" class="w-5 h-5 cursor-pointer ${s <= book.rating ? 'text-amber-400 fill-amber-400' : 'text-emerald-50'}"></i>`).join('')}
                             </div>
                             <select onchange="updateStatus('${book.id}', this.value)" class="w-full bg-emerald-50/50 border border-emerald-50 rounded-xl py-3 px-4 font-medium text-[11px] text-emerald-800 tracking-widest uppercase outline-none">
                                 <option value="${STATUS.WANT}" ${book.status === STATUS.WANT ? 'selected' : ''}>${STATUS.WANT}</option>
@@ -342,49 +353,53 @@
                         </div>
                     </div>
 
+                    <!-- AI 導讀區 -->
                     <section class="bg-white p-8 rounded-[2.5rem] shadow-sm border border-amber-50/50 relative">
                        <div class="flex justify-between items-center mb-6">
-                         <h4 class="text-[10px] font-semibold text-amber-600 uppercase tracking-[0.25em] flex items-center gap-2">
-                           <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> AI Insight
+                         <h4 class="text-[10px] font-semibold text-amber-600/80 uppercase tracking-[0.25em] flex items-center gap-2">
+                           <i data-lucide="sparkles" class="w-3.5 h-3.5 fill-current"></i> AI 解析
                          </h4>
-                         ${!book.aiSummary ? `<button onclick="generateSummary('${book.id}')" class="px-4 py-2 bg-amber-500/10 text-amber-600 text-[10px] font-semibold rounded-xl tracking-wider">分析內容</button>` : ''}
+                         ${!book.aiSummary ? `<button onclick="generateSummary('${book.id}')" class="px-4 py-2 bg-amber-500/10 text-amber-600 text-[10px] font-semibold rounded-xl active:scale-95 transition-all">生成導讀</button>` : ''}
                        </div>
-                       <div id="ai-summary-text" class="text-[13px] text-emerald-900/60 leading-[1.8] font-normal whitespace-pre-wrap border-l border-amber-100/50 pl-5">
-                         ${book.aiSummary || `<p class="text-[12px] text-emerald-800/20 italic text-center py-4">讓 AI 為您導讀核心內容</p>`}
+                       <div class="text-[13px] text-emerald-900/60 leading-[1.8] font-normal whitespace-pre-wrap border-l border-amber-100/50 pl-5">
+                         ${book.aiSummary || `<p class="text-[12px] text-emerald-800/20 italic text-center py-4">讓 AI 帶你掌握核心重點</p>`}
                        </div>
                     </section>
 
-                    <div class="bg-emerald-900/90 p-10 rounded-[3rem] text-white shadow-lg space-y-10">
-                        <h4 class="text-[9px] font-medium text-emerald-300 uppercase tracking-[0.3em] flex items-center gap-2 opacity-50">
-                          <i data-lucide="book-open" class="w-3 h-3"></i> Current Milestone
+                    <!-- 進度更新 -->
+                    <div class="bg-emerald-900/95 p-10 rounded-[3.2rem] text-white shadow-lg space-y-10 relative overflow-hidden">
+                        <i data-lucide="leaf" class="absolute -right-6 -top-6 text-white/5 w-32 h-32 rotate-45"></i>
+                        <h4 class="text-[9px] font-medium text-emerald-300 uppercase tracking-[0.3em] flex items-center gap-2 opacity-50 relative z-10">
+                          <i data-lucide="book-open" class="w-3 h-3"></i> 目前里程碑
                         </h4>
-                        <div class="flex items-center gap-10">
+                        <div class="flex items-center gap-8 relative z-10">
                            <div class="flex-1 flex flex-col items-center gap-4">
-                              <input type="number" value="${book.currentPage}" onchange="updateProgress('${book.id}', this.value)" class="w-full bg-white/5 rounded-3xl py-5 px-2 font-semibold text-4xl text-white text-center shadow-inner border border-white/10 outline-none">
-                              <span class="text-[8px] font-medium text-emerald-400 uppercase tracking-widest">Page Now</span>
+                              <input type="number" value="${book.currentPage}" onchange="updateProgress('${book.id}', this.value)" class="w-full bg-white/10 rounded-3xl py-5 px-2 font-semibold text-4xl text-white text-center shadow-inner border border-white/10 outline-none focus:bg-white/20 transition-all">
+                              <span class="text-[8px] font-medium text-emerald-400 uppercase tracking-widest opacity-60">目前頁碼</span>
                            </div>
-                           <div class="text-emerald-700 font-light text-4xl">/</div>
+                           <div class="text-emerald-700 font-light text-4xl mt-[-20px]">/</div>
                            <div class="flex-1 flex flex-col items-center gap-4">
-                              <div class="w-full bg-emerald-950/20 rounded-3xl py-5 px-2 font-semibold text-4xl text-emerald-500/80 text-center border border-white/5">${book.pages}</div>
-                              <span class="text-[8px] font-medium text-emerald-400 uppercase tracking-widest">Total Page</span>
+                              <div class="w-full bg-emerald-950/40 rounded-3xl py-5 px-2 font-semibold text-4xl text-emerald-500/80 text-center border border-white/5">${book.pages}</div>
+                              <span class="text-[8px] font-medium text-emerald-400 uppercase tracking-widest opacity-60">總頁數</span>
                            </div>
                         </div>
                     </div>
 
+                    <!-- 札記 -->
                     <section class="space-y-6">
                       <div class="flex justify-between items-center px-2">
-                        <h4 class="text-sm font-semibold text-emerald-950">隨手札記</h4>
-                        <button onclick="beautifyNote('${book.id}')" class="flex items-center gap-1.5 px-4 py-2 bg-emerald-600/5 text-emerald-700 rounded-full text-[10px] font-semibold border border-emerald-100/30">
-                            <i data-lucide="wand-2" class="w-3 h-3"></i> AI 修辭
+                        <h4 class="text-sm font-semibold text-emerald-950">閱讀感悟</h4>
+                        <button onclick="beautifyNote('${book.id}')" class="flex items-center gap-1.5 px-4 py-2 bg-emerald-600/5 text-emerald-700 rounded-full text-[10px] font-semibold border border-emerald-100/30 active:scale-95 transition-all">
+                            <i data-lucide="wand-2" class="w-3 h-3"></i> AI 美化
                         </button>
                       </div>
-                      <div class="bg-white p-2 rounded-[2.5rem] shadow-sm border border-emerald-50">
-                        <textarea id="detail-note" placeholder="在此處記錄您的閱讀感悟..." class="w-full bg-transparent border-none rounded-3xl p-6 text-[14px] outline-none min-h-[180px] text-emerald-950/80 placeholder:text-emerald-100 leading-[1.8]"></textarea>
-                        <button onclick="saveNote('${book.id}')" class="w-full py-5 bg-emerald-800 text-white rounded-[1.8rem] font-medium text-[13px] tracking-[0.2em] shadow-lg shadow-emerald-200 uppercase">儲存札記</button>
+                      <div class="bg-white p-2 rounded-[2.8rem] shadow-sm border border-emerald-50 card-shadow">
+                        <textarea id="detail-note" placeholder="記錄下此刻的心流狀態..." class="w-full bg-transparent border-none rounded-[2.2rem] p-7 text-[14px] outline-none min-h-[180px] text-emerald-950/80 placeholder:text-emerald-100/60 leading-[1.8]"></textarea>
+                        <button onclick="saveNote('${book.id}')" class="w-full py-5 bg-emerald-800 text-white rounded-[2rem] font-medium text-sm tracking-[0.2em] shadow-lg shadow-emerald-200 uppercase transition-all active:bg-emerald-900">儲存</button>
                       </div>
-                      <div class="space-y-6 pt-4">
+                      <div class="space-y-6 pt-6">
                         ${(book.notes || []).map(n => `
-                            <div class="bg-white p-7 rounded-[2rem] border border-emerald-50/50 shadow-sm relative">
+                            <div class="bg-white p-7 rounded-[2.2rem] border border-emerald-50/50 shadow-sm relative card-shadow">
                                 <p class="text-[14px] text-emerald-900/60 leading-[1.8] font-normal italic">「${n.text}」</p>
                                 <div class="flex items-center gap-2 text-[9px] text-emerald-200 font-medium uppercase mt-5 pt-4 border-t border-emerald-50/50 tracking-widest">
                                   <i data-lucide="calendar" class="w-2.5 h-2.5"></i> ${n.date}
@@ -398,7 +413,7 @@
             lucide.createIcons();
         }
 
-        // --- Interaction Handlers ---
+        // --- 互動處理器 ---
         function switchTab(tabId) {
             state.activeTab = tabId;
             render();
@@ -436,11 +451,11 @@
                     title: item.volumeInfo.title,
                     author: item.volumeInfo.authors?.[0] || '未知作者',
                     cover: item.volumeInfo.imageLinks?.thumbnail || 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&q=80&w=200',
-                    pages: item.volumeInfo.pageCount || 200,
+                    pages: item.volumeInfo.pageCount || 250,
                     tags: [],
                     notes: []
                 }));
-            } catch (err) { console.error(err); } finally {
+            } catch (err) { console.error("搜尋錯誤:", err); } finally {
                 state.isSearching = false;
                 render();
             }
@@ -468,7 +483,7 @@
         }
 
         function deleteBook(id) {
-            if (confirm("確定移除這本書？")) {
+            if (confirm("確定從館藏中移除這本書？")) {
                 state.books = state.books.filter(b => b.id !== id);
                 saveToStorage();
                 toggleBookDetail(false);
@@ -519,30 +534,30 @@
             }
         }
 
-        // --- AI Actions ---
+        // --- AI 行動 ---
         async function getRecommendations() {
             const finished = state.books.filter(b => b.status === STATUS.FINISHED).map(b => `《${b.title}》(${b.rating}星)`).join(', ');
             if (!finished) {
-                alert("請先標記幾本完讀的書並評分。");
+                alert("請先讀完幾本書並評分，AI 才能了解你的品味！");
                 return;
             }
-            const prompt = `根據我已讀完的清單：[${finished}]，推薦 3 本我可能會感興趣的新書。提供書名、推薦原因、適合的心情。繁體中文，格式清晰。`;
+            const prompt = `我已讀完：[${finished}]。推薦 3 本新書，包含書名、原因與適合心情。繁體中文。`;
             const result = await callGemini(prompt, "你是一位懂書的智慧導覽員。");
             if (result) {
                 state.aiRecommendation = result;
+                saveToStorage();
                 render();
             }
         }
 
         async function generateSummary(id) {
             const book = state.books.find(b => b.id === id);
-            const prompt = `請為《${book.title}》提供約 300 字精華導讀。內容含：主題摘要、讀者建議、三個知識點。繁體中文，語氣溫暖。`;
-            const result = await callGemini(prompt, "你是一位資深讀書博主。");
+            const prompt = `為《${book.title}》提供 300 字精華導讀（主題、建議、知識點）。繁體中文。`;
+            const result = await callGemini(prompt, "你是一位專業讀書博主。");
             if (result) {
                 book.aiSummary = result;
                 saveToStorage();
                 renderBookDetail(book);
-                render();
             }
         }
 
@@ -550,16 +565,17 @@
             const text = document.getElementById('detail-note').value;
             const book = state.books.find(b => b.id === id);
             if (!text.trim()) return;
-            const prompt = `這是《${book.title}》的讀後感：『${text}』。請美化成結構化的書評摘要。`;
+            const prompt = `將我的心得：『${text}』修飾成優美的書評。書名《${book.title}》。`;
             const result = await callGemini(prompt, "你是一位文學評論家。");
             if (result) {
                 document.getElementById('detail-note').value = result;
             }
         }
 
-        // --- Init ---
+        // --- 初始化 ---
         window.onload = () => {
             render();
+            lucide.createIcons();
         };
     </script>
 </body>
